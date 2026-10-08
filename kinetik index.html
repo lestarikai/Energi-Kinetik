@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi WebAR: Energi Kinetik Translasi & Rotasi</title>
+    <!-- Tailwind CSS for modern responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D Simulation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- Top Navbar & Module Switcher -->
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex flex-wrap items-center justify-between shrink-0 gap-3">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 p-2 rounded-xl text-white font-bold shadow-lg shadow-indigo-600/30">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-base sm:text-lg font-bold bg-gradient-to-r from-indigo-400 via-cyan-300 to-teal-300 bg-clip-text text-transparent">Simulasi Fisika: Energi Kinetik</h1>
+                <p class="text-xs text-slate-400">Modul Terpisah: Translasi, Rotasi, dan Total Energi</p>
+            </div>
+        </div>
+
+        <!-- 3 Module Switcher Buttons -->
+        <div class="flex items-center bg-slate-950 p-1.5 rounded-xl border border-slate-800 shadow-inner overflow-x-auto max-w-full">
+            <button onclick="switchModule(1)" id="btn-m1" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white transition shadow-sm whitespace-nowrap cursor-pointer">
+                1. Energi Kinetik Translasi
+            </button>
+            <button onclick="switchModule(2)" id="btn-m2" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer">
+                2. Energi Kinetik Rotasi
+            </button>
+            <button onclick="switchModule(3)" id="btn-m3" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer">
+                3. Kekekalan & Total Energi
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace: Split Left (LKPD & Theory) and Right (3D Simulation) -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- LEFT PANEL: LKPD & Module Theory Content -->
+        <section class="w-full lg:w-1/2 border-r border-slate-800 flex flex-col h-full bg-slate-900/60">
+            <div class="p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span id="lkpd-title-header" class="font-bold text-sm text-slate-200">Modul 1: Energi Kinetik Translasi</span>
+                </div>
+                <button onclick="resetCurrentModuleData()" class="text-xs px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition border border-slate-700 cursor-pointer">Reset Parameter</button>
+            </div>
+
+            <!-- Dynamic LKPD Container -->
+            <div id="lkpd-body" class="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar text-sm">
+                <!-- Dynamically injected via JavaScript -->
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: 3D Interactive Simulation -->
+        <section class="w-full lg:w-1/2 relative flex flex-col h-full bg-black">
+            
+            <!-- Floating Header & Status Toolbar -->
+            <div class="absolute top-4 left-4 right-4 z-10 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+                <div class="bg-slate-900/85 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-xl text-xs flex items-center space-x-2.5 shadow-lg pointer-events-auto">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span id="ar-mode-badge" class="font-medium text-slate-200">Visualisasi 3D: Gerak Translasi Benda</span>
+                </div>
+                <div class="flex items-center space-x-2 pointer-events-auto">
+                    <button id="btn-anim" onclick="toggleSimulationAnimation()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs rounded-xl shadow-lg transition flex items-center space-x-1.5 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        </svg>
+                        <span id="anim-btn-text">Jeda Simulasi</span>
+                    </button>
+                    <button onclick="resetCameraAngle()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl border border-slate-700 transition cursor-pointer">Reset Kamera</button>
+                </div>
+            </div>
+
+            <!-- Three.js Canvas Container -->
+            <div id="ar-canvas-container" class="flex-1 w-full h-full cursor-grab active:cursor-grabbing"></div>
+
+            <!-- Live Telemetry HUD Widget at Bottom -->
+            <div id="hud-telemetry" class="absolute bottom-4 left-4 right-4 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex items-center justify-around text-center text-xs">
+                <!-- Dynamically updated -->
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Notification Modal Toast -->
+    <div id="toast-notification" class="fixed top-20 right-6 z-50 transition transform duration-300 translate-y-2 opacity-0 pointer-events-none"></div>
+
+    <script>
+        // Global State & Module Controller
+        let currentModule = 1;
+        let isSimulationRunning = true;
+
+        // Physics Experiment State Variables
+        let simState = {
+            m: 2.0,    // Massa benda (kg)
+            v: 4.0,    // Kecepatan linear (m/s)
+            omega: 5.0,// Kecepatan sudut (rad/s)
+            r: 0.2,    // Jari-jari silinder/bola (m)
+            h: 3.0     // Ketinggian awal (m)
+        };
+
+        // Detailed Content Definition for the 3 Independent Modules
+        const modulesData = {
+            1: {
+                title: "Modul 1: Energi Kinetik Translasi",
+                badge: "Visualisasi 3D: Gerak Lurus / Translasi Benda",
+                theoryTitle: "Konsep Dasar Energi Kinetik Translasi",
+                theoryDesc: "Energi kinetik translasi adalah energi yang dimiliki oleh suatu benda karena gerak perpindahannya (translasi) dari satu posisi ke posisi lain dalam lintasan linear.",
+                formula: "E_{kt} = \\frac{1}{2} m v^2",
+                inputs: [
+                    { id: 'm', label: 'Massa Benda (m)', min: 0.5, max: 10.0, step: 0.5, val: 2.0, unit: 'kg' },
+                    { id: 'v', label: 'Kecepatan Linear (v)', min: 1.0, max: 10.0, step: 0.5, val: 4.0, unit: 'm/s' }
+                ],
+                table: [
+                    { label: 'Massa (m)', id: 'out-m1', unit: 'kg' },
+                    { label: 'Kecepatan (v)', id: 'out-v1', unit: 'm/s' },
+                    { label: 'Energi Kinetik Translasi (E_kt)', id: 'out-ekt1', unit: 'Joule' }
+                ]
+            },
+            2: {
+                title: "Modul 2: Energi Kinetik Rotasi",
+                badge: "Visualisasi 3D: Gerak Putar / Rotasi Silinder",
+                theoryTitle: "Konsep Dasar Energi Kinetik Rotasi",
+                theoryDesc: "Energi kinetik rotasi adalah energi yang dimiliki oleh benda yang berputar terhadap suatu sumbu tetap. Besarnya bergantung pada momen inersia (I) dan kecepatan sudut (\\omega).",
+                formula: "E_{kr} = \\frac{1}{2} I \\omega^2  \\quad (I = \\frac{1}{2} m r^2)",
+                inputs: [
+                    { id: 'm', label: 'Massa Silinder (m)', min: 0.5, max: 10.0, step: 0.5, val: 2.0, unit: 'kg' },
+                    { id: 'r', label: 'Jari-Jari (r)', min: 0.05, max: 0.5, step: 0.05, val: 0.2, unit: 'm' },
+                    { id: 'omega', label: 'Kecepatan Sudut (ω)', min: 1.0, max: 20.0, step: 1.0, val: 5.0, unit: 'rad/s' }
+                ],
+                table: [
+                    { label: 'Momen Inersia (I)', id: 'out-inertia', unit: 'kg·m²' },
+                    { label: 'Kecepatan Sudut (ω)', id: 'out-omega', unit: 'rad/s' },
+                    { label: 'Energi Kinetik Rotasi (E_kr)', id: 'out-ekr2', unit: 'Joule' }
+                ]
+            },
+            3: {
+                title: "Modul 3: Kekekalan & Total Energi Kinetik",
+                badge: "Visualisasi 3D: Konversi Energi Potensial ke Kinetik",
+                theoryTitle: "Hukum Kekekalan Energi Mekanik",
+                theoryDesc: "Ketika benda menggelinding di bidang miring, energi potensial awal diubah menjadi gabungan energi kinetik translasi dan rotasi secara bersamaan tanpa kehilangan energi total.",
+                formula: "E_{m_1} = E_{m_2} \\implies mgh = \\frac{1}{2}mv^2 + \\frac{1}{2}I\\omega^2",
+                inputs: [
+                    { id: 'm', label: 'Massa Benda (m)', min: 0.5, max: 10.0, step: 0.5, val: 2.0, unit: 'kg' },
+                    { id: 'h', label: 'Ketinggian Awal (h)', min: 1.0, max: 5.0, step: 0.5, val: 3.0, unit: 'm' }
+                ],
+                table: [
+                    { label: 'Energi Potensial Awal (EP)', id: 'out-ep3', unit: 'Joule' },
+                    { label: 'Energi Kinetik Total (E_k Total)', id: 'out-ektot3', unit: 'Joule' },
+                    { label: 'Kecepatan Akhir (v)', id: 'out-v3', unit: 'm/s' }
+                ]
+            }
+        };
+
+        function switchModule(mNum) {
+            currentModule = mNum;
+            
+            for (let i = 1; i <= 3; i++) {
+                const btn = document.getElementById(`btn-m${i}`);
+                if (i === mNum) {
+                    btn.className = "px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white transition shadow-sm whitespace-nowrap cursor-pointer";
+                } else {
+                    btn.className = "px-3.5 py-1.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition whitespace-nowrap cursor-pointer";
+                }
+            }
+
+            renderLKPDContent();
+            updateCalculationsAndHUD();
+            update3DGeometry();
+        }
+
+        function renderLKPDContent() {
+            const mod = modulesData[currentModule];
+            document.getElementById('lkpd-title-header').textContent = mod.title;
+            document.getElementById('ar-mode-badge').textContent = mod.badge;
+
+            let html = `
+                <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-sm space-y-2">
+                    <h3 class="font-bold text-indigo-400 flex items-center space-x-1.5">
+                        <span>📖 ${mod.theoryTitle}</span>
+                    </h3>
+                    <p class="text-slate-300 leading-relaxed text-xs sm:text-sm">${mod.theoryDesc}</p>
+                    <div class="my-2 p-2.5 bg-slate-950 rounded-xl text-center font-mono text-cyan-300 text-xs border border-slate-800/80">
+                        ${mod.formula}
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-sm space-y-4">
+                    <h3 class="font-bold text-indigo-400 text-xs sm:text-sm">⚙️ Variabel Simulasi Modul ${currentModule}</h3>
+            `;
+
+            mod.inputs.forEach(inp => {
+                let currentVal = simState[inp.id];
+                html += `
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="font-medium text-slate-300">${inp.label}</span>
+                            <span class="font-bold text-cyan-400"><span id="val-${inp.id}">${currentVal}</span> ${inp.unit}</span>
+                        </div>
+                        <input type="range" id="input-${inp.id}" min="${inp.min}" max="${inp.max}" step="${inp.step}" value="${currentVal}" class="w-full accent-indigo-500 cursor-pointer">
+                    </div>
+                `;
+            });
+
+            html += `
+                </div>
+
+                <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-sm space-y-3">
+                    <h3 class="font-bold text-indigo-400 text-xs sm:text-sm">📊 Tabel Data & Hasil Perhitungan Real-Time</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-2 px-2">Parameter</th>
+                                    <th class="py-2 px-2">Nilai</th>
+                                    <th class="py-2 px-2">Satuan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60">
+            `;
+
+            mod.table.forEach(row => {
+                html += `
+                    <tr>
+                        <td class="py-2 px-2 text-slate-300">${row.label}</td>
+                        <td id="${row.id}" class="py-2 px-2 font-mono text-cyan-400 font-semibold">0.00</td>
+                        <td class="py-2 px-2 text-slate-500">${row.unit}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 shadow-sm space-y-2.5">
+                    <h3 class="font-bold text-indigo-400 text-xs sm:text-sm">✍️ Catatan Analisis Modul ${currentModule}</h3>
+                    <textarea id="notes-${currentModule}" placeholder="Tuliskan analisis dan hasil pengamatan Anda pada modul ini..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 h-20 resize-none"></textarea>
+                    <button onclick="saveStudentNotes(${currentModule})" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 font-medium text-xs rounded-xl text-white transition shadow-lg shadow-indigo-600/20 cursor-pointer">Simpan Catatan Modul ${currentModule}</button>
+                </div>
+            `;
+
+            document.getElementById('lkpd-body').innerHTML = html;
+            attachSliderListeners();
+            updateCalculationsAndHUD();
+        }
+
+        function attachSliderListeners() {
+            const mod = modulesData[currentModule];
+            mod.inputs.forEach(inp => {
+                const slider = document.getElementById(`input-${inp.id}`);
+                if (slider) {
+                    slider.addEventListener('input', (e) => {
+                        simState[inp.id] = parseFloat(e.target.value);
+                        document.getElementById(`val-${inp.id}`).textContent = simState[inp.id].toFixed(1);
+                        updateCalculationsAndHUD();
+                        update3DGeometry();
+                    });
+                }
+            });
+        }
+
+        function updateCalculationsAndHUD() {
+            const m = simState.m;
+            const v = simState.v;
+            const omega = simState.omega;
+            const r = simState.r;
+            const h = simState.h;
+
+            if (currentModule === 1) {
+                const ekt = 0.5 * m * Math.pow(v, 2);
+
+                document.getElementById('out-m1').textContent = m.toFixed(1);
+                document.getElementById('out-v1').textContent = v.toFixed(1);
+                document.getElementById('out-ekt1').textContent = ekt.toFixed(2);
+
+                document.getElementById('hud-telemetry').innerHTML = `
+                    <div><p class="text-slate-400">Massa (m)</p><p class="font-bold text-cyan-400 text-sm">${m.toFixed(1)} kg</p></div>
+                    <div class="w-px h-8 bg-slate-800"></div>
+                    <div><p class="text-slate-400">Kecepatan (v)</p><p class="font-bold text-emerald-400 text-sm">${v.toFixed(1)} m/s</p></div>
+                    <div class="w-px h-8 bg-slate-800"></div>
+                    <div><p class="text-slate-400">EK Translasi (E_kt)</p><p class="font-bold text-indigo-400 text-sm">${ekt.toFixed(2)} J</p></div>
+                `;
+            } else if (currentModule === 2) {
+                const inertia = 0.5 * m * Math.pow(r, 2);
+                const ekr = 0.5 * inertia * Math.pow(omega, 2);
+
+                document.getElementById('out-inertia').textContent = inertia.toFixed(4);
+                document.getElementById('out-omega').textContent = omega.toFixed(1);
+                document.getElementById('out-ekr2').textContent = ekr.toFixed(2);
+
+                document.getElementById('hud-telemetry').innerHTML = `
+                    <div><p class="text-slate-400">Inersia (I)</p><p class="font-bold text-cyan-400 text-sm">${inertia.toFixed(3)} kg·m²</p></div>
+                    <div class="w-px h-8 bg-slate-800"></div>
+                    <div><p class="text-slate-400">Kecepatan Sudut (ω)</p><p class="font-bold text-emerald-400 text-sm">${omega.toFixed(1)} rad/s</p></div>
+                    <div class="w-px h-8 bg-slate-800"></div>
+                    <div><p class="text-slate-400">EK Rotasi (E_kr)</p><p class="font-bold text-indigo-400 text-sm">${ekr.toFixed(2)} J</p></div>
+                `;
+            } else if (currentModule === 3) {
+                const g = 9.8;
+                const ep = m * g * h;
+                // For rolling cylinder: mgh = 0.5mv^2 + 0.5(0.5mr^2)(v/r)^2 = 0.75mv^2 => v = sqrt(4gh / 3)
+                const vFinal = Math.sqrt((4 * g * h) / 3);
+                const ekt = 0.5 * m * Math.pow(vFinal, 2);
+                const inertia = 0.5 * m * Math.pow(0.2, 2);
+                const omegaCalc = vFinal / 0.2;
+                const ekr = 0.5 * inertia * Math.pow(omegaCalc, 2);
+                const ektot = ekt + ekr;
+
+                document.getElementById('out-ep3').textContent = ep.toFixed(2);
+                document.getElementById('out-ektot3').textContent = ektot.toFixed(2);
+                document.getElementById('out-v3').textContent = vFinal.toFixed(2);
+
+                document.getElementById('hud-telemetry').innerHTML = `
+                    <div><p class="text-slate-400">EP Awal</p><p class="font-bold text-cyan-400 text-sm">${ep.toFixed(2)} J</p></div>
+                    <div class="w-px h-8 bg-slate-800"></div>
+                    <div><p class="text-slate-400">EK Total Akhir</p><p class="font-bold text-emerald-400 text-sm">${ektot.toFixed(2)} J</p></div>
+                    <div class="w-px h-8 bg-slate-800"></div>
+                    <div><p class="text-slate-400">Kecepatan (v)</p><p class="font-bold text-indigo-400 text-sm">${vFinal.toFixed(2)} m/s</p></div>
+                `;
+            }
+        }
+
+        function resetCurrentModuleData() {
+            if (currentModule === 1) { simState.m = 2.0; simState.v = 4.0; }
+            else if (currentModule === 2) { simState.m = 2.0; simState.r = 0.2; simState.omega = 5.0; }
+            else if (currentModule === 3) { simState.m = 2.0; simState.h = 3.0; }
+            renderLKPDContent();
+            update3DGeometry();
+        }
+
+        function saveStudentNotes(mNum) {
+            const txt = document.getElementById(`notes-${mNum}`).value;
+            if (!txt.trim()) {
+                showToast("Catatan Masih Kosong", "Harap tuliskan analisis modul terlebih dahulu.", "error");
+                return;
+            }
+            showToast("Berhasil Disimpan!", `Catatan Modul ${mNum} telah tercatat dalam sistem.`, "success");
+        }
+
+        function showToast(title, msg, type) {
+            const toast = document.getElementById('toast-notification');
+            toast.innerHTML = `
+                <div class="bg-slate-900 border ${type==='success'?'border-indigo-500':'border-rose-500'} text-slate-100 px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-3">
+                    <div class="${type==='success'?'bg-indigo-600':'bg-rose-600'} p-2 rounded-xl text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm ${type==='success'?'text-indigo-300':'text-rose-300'}">${title}</h4>
+                        <p class="text-xs text-slate-300">${msg}</p>
+                    </div>
+                </div>
+            `;
+            toast.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+            }, 3500);
+        }
+
+        const canvasContainer = document.getElementById('ar-canvas-container');
+        let scene, camera, renderer, objectMesh3D;
+        let clock = new THREE.Clock();
+
+        function initThreeScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020617);
+
+            camera = new THREE.PerspectiveCamera(60, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 1000);
+            camera.position.set(0, 1.5, 5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            canvasContainer.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            // Grid Anchor
+            const grid = new THREE.GridHelper(10, 20, 0x6366f1, 0x1e293b);
+            grid.position.y = -1.5;
+            scene.add(grid);
+
+            update3DGeometry();
+            setupOrbitInteraction();
+            animateSimulationLoop();
+        }
+
+        function update3DGeometry() {
+            if (objectMesh3D) {
+                scene.remove(objectMesh3D);
+            }
+
+            objectMesh3D = new THREE.Group();
+
+            if (currentModule === 1) {
+                // Translational Block Object
+                const boxGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+                const boxMat = new THREE.MeshStandardMaterial({ color: 0x4f46e5, metalness: 0.3, roughness: 0.3, emissive: 0x1e1b4b });
+                const box = new THREE.Mesh(boxGeo, boxMat);
+                objectMesh3D.add(box);
+            } else if (currentModule === 2) {
+                // Rotational Cylinder Object
+                const cylGeo = new THREE.CylinderGeometry(1, 1, 1.2, 32);
+                const cylMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, metalness: 0.5, roughness: 0.2, emissive: 0x083344 });
+                const cyl = new THREE.Mesh(cylGeo, cylMat);
+                cyl.rotation.z = Math.PI / 2;
+                objectMesh3D.add(cyl);
+
+                // Axle marker line
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.2, 0, 0), new THREE.Vector3(1.2, 0, 0)]);
+                const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
+                const axisLine = new THREE.Line(lineGeo, lineMat);
+                objectMesh3D.add(axisLine);
+            } else if (currentModule === 3) {
+                // Rolling Sphere Object
+                const sphereGeo = new THREE.SphereGeometry(1.2, 32, 32);
+                const sphereMat = new THREE.MeshStandardMaterial({ color: 0x10b981, metalness: 0.4, roughness: 0.3, emissive: 0x064e3b });
+                const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+                objectMesh3D.add(sphere);
+            }
+
+            scene.add(objectMesh3D);
+        }
+
+        // Mouse & Touch Orbit Controls for 3D Viewer
+        let isDragging = false;
+        let prevMouse = { x: 0, y: 0 };
+        let camAngleX = 0;
+        let camAngleY = 0;
+
+        function setupOrbitInteraction() {
+            canvasContainer.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                prevMouse = { x: e.clientX, y: e.clientY };
+            });
+            canvasContainer.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - prevMouse.x;
+                const dy = e.clientY - prevMouse.y;
+                camAngleX -= dx * 0.005;
+                camAngleY = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, camAngleY + dy * 0.005));
+                updateCamPos();
+                prevMouse = { x: e.clientX, y: e.clientY };
+            });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            canvasContainer.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+            canvasContainer.addEventListener('touchmove', (e) => {
+                if (!isDragging || e.touches.length !== 1) return;
+                const dx = e.touches[0].clientX - prevMouse.x;
+                const dy = e.touches[0].clientY - prevMouse.y;
+                camAngleX -= dx * 0.005;
+                camAngleY = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, camAngleY + dy * 0.005));
+                updateCamPos();
+                prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            });
+            window.addEventListener('touchend', () => { isDragging = false; });
+        }
+
+        function updateCamPos() {
+            const dist = 5;
+            camera.position.x = dist * Math.sin(camAngleX) * Math.cos(camAngleY);
+            camera.position.y = 1.5 + dist * Math.sin(camAngleY);
+            camera.position.z = dist * Math.cos(camAngleX) * Math.cos(camAngleY);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function resetCameraAngle() {
+            camAngleX = 0;
+            camAngleY = 0;
+            camera.position.set(0, 1.5, 5);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function toggleSimulationAnimation() {
+            isSimulationRunning = !isSimulationRunning;
+            const btnText = document.getElementById('anim-btn-text');
+            if (isSimulationRunning) {
+                btnText.textContent = "Jeda Simulasi";
+            } else {
+                btnText.textContent = "Lanjut Simulasi";
+            }
+        }
+
+        function animateSimulationLoop() {
+            requestAnimationFrame(animateSimulationLoop);
+
+            const delta = clock.getDelta();
+
+            if (isSimulationRunning && objectMesh3D) {
+                if (currentModule === 1) {
+                    // Translational motion: sliding left & right oscillation
+                    const v = simState.v;
+                    objectMesh3D.position.x = Math.sin(clock.getElapsedTime() * (v * 0.5)) * 1.8;
+                    objectMesh3D.position.y = 0;
+                    objectMesh3D.rotation.set(0, 0, 0);
+                } else if (currentModule === 2) {
+                    // Rotational motion: spinning around Z/X axis
+                    const omega = simState.omega;
+                    objectMesh3D.position.set(0, 0, 0);
+                    objectMesh3D.rotation.z += omega * delta * 0.5;
+                } else if (currentModule === 3) {
+                    // Combined rolling motion: moving and rotating together
+                    const t = clock.getElapsedTime() * 1.5;
+                    const posX = Math.sin(t) * 1.8;
+                    objectMesh3D.position.x = posX;
+                    objectMesh3D.position.y = 0;
+                    objectMesh3D.rotation.y -= delta * 2.0;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            if (!canvasContainer) return;
+            const w = canvasContainer.clientWidth;
+            const h = canvasContainer.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        });
+
+        // Initialize on load
+        window.onload = function() {
+            switchModule(1);
+            initThreeScene();
+        };
+    </script>
+</body>
+</html>
